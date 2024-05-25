@@ -19,6 +19,13 @@ type Reply struct {
 }
 
 func (d *Daemon) Claim(args *Args, reply *Reply) error {
+	l, err := net.ListenTCP("tcp", nil)
+	if err != nil {
+		return err
+	}
+	defer l.Close()
+	reply.Port = l.Addr().(*net.TCPAddr).Port
+
 	return nil
 }
 
