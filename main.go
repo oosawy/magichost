@@ -3,9 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
 
 	"github.com/oosawy/magichost/client"
 	"github.com/oosawy/magichost/daemon"
+	"github.com/oosawy/magichost/proxy"
 )
 
 func main() {
@@ -14,15 +18,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) == 2 && (os.Args[1] == "daemon") {
+	switch os.Args[1] {
+	case "daemon":
 		daemon.Do()
-	} else {
+	case "proxy":
+		c := make(chan int)
+		proxy.Start(c)
+		p, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			panic(err)
+		}
+		c <- p
+
+		quitChannel := make(chan os.Signal, 1)
+		signal.Notify(quitChannel, syscall.SIGINT, syscall.SIGTERM)
+		<-quitChannel
+	default:
 		client.Do()
 	}
-}
-
-func SocketFile() string {
-	dir := fmt.Sprintf("/run/user/%d", os.Getuid())
-
-	return dir + "/magichost.sock"
 }

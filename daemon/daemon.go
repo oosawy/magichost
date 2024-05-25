@@ -6,9 +6,13 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+
+	"github.com/oosawy/magichost/proxy"
 )
 
-type Daemon struct{}
+type Daemon struct {
+	c chan int
+}
 
 type Args struct {
 	Service string
@@ -47,6 +51,8 @@ func Do() {
 	if err := http.Serve(l, nil); err != nil {
 		panic(err)
 	}
+
+	proxy.Start(d.c)
 }
 
 func SocketFile() string {
