@@ -60,9 +60,23 @@ func (d *Daemon) Claim(args *ClaimArgs, reply *ClaimReply) error {
 	return nil
 }
 
-type RegisterArgs struct {
+type ResolveArgs struct {
+	Hostname string
+}
+
+type ResolveReply struct {
 	Host string
-	Port int
+}
+
+func (d *Daemon) Resolve(args *ResolveArgs, reply *ResolveReply) error {
+	port, ok := d.table[args.Hostname]
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+
+	reply.Host = fmt.Sprintf("localhost:%d", port)
+
+	return nil
 }
 
 func Do() {

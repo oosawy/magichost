@@ -13,6 +13,8 @@ func Do(args []string) {
 		list()
 	case "claim":
 		claim(args[1])
+	case "resolve":
+		resolve(args[1])
 	}
 }
 
@@ -48,4 +50,22 @@ func claim(host string) {
 	}
 
 	fmt.Println("Port:", reply.Port)
+}
+
+func resolve(host string) {
+	client, err := rpc.DialHTTP("unix", daemon.SocketFile())
+	if err != nil {
+		panic(err)
+	}
+
+	args := &daemon.ResolveArgs{
+		Hostname: host,
+	}
+	reply := &daemon.ResolveReply{}
+
+	if err = client.Call("Daemon.Resolve", args, reply); err != nil {
+		panic(err)
+	}
+
+	println(reply.Host)
 }
