@@ -18,22 +18,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	if len(os.Args) < 2 {
+		client.Do()
+		return
+	}
+
 	switch os.Args[1] {
 	case "daemon":
 		daemon.Do()
 	case "proxy":
-		c := make(chan int)
+		c := make(chan proxy.MagicHost)
 		proxy.Start(c)
 		p, err := strconv.Atoi(os.Args[2])
 		if err != nil {
 			panic(err)
 		}
-		c <- p
+		c <- proxy.MagicHost{
+			Host: os.Args[3],
+			Port: p,
+		}
 
 		quitChannel := make(chan os.Signal, 1)
 		signal.Notify(quitChannel, syscall.SIGINT, syscall.SIGTERM)
 		<-quitChannel
-	default:
-		client.Do()
 	}
 }

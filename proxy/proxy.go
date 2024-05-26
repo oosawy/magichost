@@ -2,7 +2,8 @@ package proxy
 
 import (
 	"fmt"
-	"net"
+	"io"
+	"net/http"
 )
 
 type MagicHost struct {
@@ -23,59 +24,34 @@ func Start(c chan MagicHost) {
 	}()
 
 	go func() {
-		addr, err := net.ResolveTCPAddr("tcp", ":8080")
-		if err != nil {
-			panic(err)
-		}
+		client := new(http.Client)
 
-		l, err := net.ListenTCP("tcp", addr)
-		if err != nil {
-			panic(err)
-		}
-
-		for {
-			conn, err := l.Accept()
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := table[r.Host]
+			r.URL.Scheme = "http"
+			r.URL.Host = fmt.Sprintf("localhost:%d", p)
+			r.RequestURI = ""
+			fmt.Println("req", r.URL)
+			res, err := client.Do(r)
 			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			p := table[conn.RemoteAddr().String()]
-			go handle(conn, p)
-		}
-	}()
-}
-
-func handle(conn net.Conn, p int) {
-	conn2, err := net.Dial("tcp", fmt.Sprintf(":%d", p))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	go func() {
-		defer conn.Close()
-		buf := make([]byte, 1024)
-		for {
-			n, err := conn.Read(buf)
-			if err != nil {
-				fmt.Println(err)
+				fmt.Println("bad gateway", err)
+				w.WriteHeader(http.StatusBadGateway)
 				return
 			}
-			conn2.Write(buf[:n])
-		}
-	}()
 
-	go func() {
-		defer conn2.Close()
-		buf := make([]byte, 1024)
-		for {
-			n, err := conn2.Read(buf)
-			if err != nil {
-				fmt.Println(err)
-				return
+			w.WriteHeader(res.StatusCode)
+			for k, v := range res.Header {
+				for _, vv := range v {
+					w.Header().Add(k, vv)
+				}
 			}
-			conn.Write(buf[:n])
+
+			defer res.Body.Close()
+			io.Copy(w, res.Body)
+		})
+		err := http.ListenAndServe(":8080", handler)
+		if err != nil {
+			panic(err)
 		}
 	}()
 }

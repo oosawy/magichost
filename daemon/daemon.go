@@ -11,7 +11,7 @@ import (
 )
 
 type Daemon struct {
-	c chan int
+	c chan proxy.MagicHost
 }
 
 type Args struct {
@@ -34,6 +34,8 @@ func (d *Daemon) Claim(args *Args, reply *Reply) error {
 }
 
 func Do() {
+	println("magichost daemon starting")
+
 	d := Daemon{}
 	if err := rpc.Register(&d); err != nil {
 		panic(err)
