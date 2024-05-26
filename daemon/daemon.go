@@ -11,32 +11,68 @@ import (
 )
 
 type Daemon struct {
-	c chan proxy.MagicHost
+	table map[string]int
 }
 
-type Args struct {
-	Service string
+type Args struct{}
+
+type Reply struct{}
+
+type ListReply struct {
+	List []MagicHost
 }
 
-type Reply struct {
+type MagicHost struct {
+	Host string
 	Port int
 }
 
-func (d *Daemon) Claim(args *Args, reply *Reply) error {
+func (d *Daemon) List(args *Args, reply *ListReply) error {
+	list := []MagicHost{}
+	for k, v := range d.table {
+		list = append(list, MagicHost{k, v})
+	}
+	reply.List = list
+
+	return nil
+}
+
+type ClaimArgs struct {
+	Host string
+}
+
+type ClaimReply struct {
+	Port int
+}
+
+func (d *Daemon) Claim(args *ClaimArgs, reply *ClaimReply) error {
 	l, err := net.ListenTCP("tcp", nil)
 	if err != nil {
 		return err
 	}
-	defer l.Close()
-	reply.Port = l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
+
+	reply.Port = port
+
+	d.table[args.Host] = port
 
 	return nil
+}
+
+type RegisterArgs struct {
+	Host string
+	Port int
 }
 
 func Do() {
 	println("magichost daemon starting")
 
-	d := Daemon{}
+	table := make(map[string]int)
+
+	go proxy.Start(table)
+
+	d := Daemon{table}
 	if err := rpc.Register(&d); err != nil {
 		panic(err)
 	}
@@ -54,7 +90,6 @@ func Do() {
 		panic(err)
 	}
 
-	proxy.Start(d.c)
 }
 
 func SocketFile() string {

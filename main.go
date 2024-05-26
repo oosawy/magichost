@@ -13,13 +13,10 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 1 {
-		fmt.Println("Usage: magichost [daemon]")
-		os.Exit(1)
-	}
-
 	if len(os.Args) < 2 {
-		client.Do()
+		fmt.Println("usage: magichost [daemon]")
+		fmt.Println("   or: magichost [client] (list|claim)")
+		os.Exit(1)
 		return
 	}
 
@@ -27,19 +24,20 @@ func main() {
 	case "daemon":
 		daemon.Do()
 	case "proxy":
-		c := make(chan proxy.MagicHost)
-		proxy.Start(c)
+		table := map[string]int{}
+		proxy.Start(table)
 		p, err := strconv.Atoi(os.Args[2])
 		if err != nil {
 			panic(err)
 		}
-		c <- proxy.MagicHost{
-			Host: os.Args[3],
-			Port: p,
-		}
+		table[os.Args[3]] = p
 
 		quitChannel := make(chan os.Signal, 1)
 		signal.Notify(quitChannel, syscall.SIGINT, syscall.SIGTERM)
 		<-quitChannel
+	case "client":
+		client.Do(os.Args[2:])
+	default:
+		client.Do(os.Args[1:])
 	}
 }
