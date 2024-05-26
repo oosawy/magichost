@@ -6,14 +6,20 @@ import (
 	"net/http"
 )
 
-func Start(table map[string]int) {
+type MagicEntry struct {
+	Host string
+	Port int
+	Stop chan struct{}
+}
+
+func Start(table map[string]MagicEntry) {
 	println("proxy start")
 	client := new(http.Client)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := table[r.Host]
+		e := table[r.Host]
 		r.URL.Scheme = "http"
-		r.URL.Host = fmt.Sprintf("localhost:%d", p)
+		r.URL.Host = fmt.Sprintf("localhost:%d", e.Port)
 		r.RequestURI = ""
 		fmt.Println("req", r.URL)
 		res, err := client.Do(r)

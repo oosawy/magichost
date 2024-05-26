@@ -7,11 +7,12 @@ import (
 	"net/rpc"
 	"os"
 
+	"github.com/oosawy/magichost/dns"
 	"github.com/oosawy/magichost/proxy"
 )
 
 type Daemon struct {
-	table map[string]int
+	table map[string]proxy.MagicEntry
 }
 
 type Args struct{}
@@ -30,7 +31,7 @@ type MagicHost struct {
 func (d *Daemon) List(args *Args, reply *ListReply) error {
 	list := []MagicHost{}
 	for k, v := range d.table {
-		list = append(list, MagicHost{k, v})
+		list = append(list, MagicHost{k, v.Port})
 	}
 	reply.List = list
 
@@ -55,7 +56,10 @@ func (d *Daemon) Claim(args *ClaimArgs, reply *ClaimReply) error {
 
 	reply.Port = port
 
-	d.table[args.Host] = port
+	stop := make(chan struct{})
+	d.table[args.Host] = proxy.MagicEntry{Host: args.Host, Port: port, Stop: stop}
+
+	go dns.Multicast(args.Host, stop)
 
 	return nil
 }
@@ -69,12 +73,12 @@ type ResolveReply struct {
 }
 
 func (d *Daemon) Resolve(args *ResolveArgs, reply *ResolveReply) error {
-	port, ok := d.table[args.Hostname]
+	e, ok := d.table[args.Hostname]
 	if !ok {
 		return fmt.Errorf("not found")
 	}
 
-	reply.Host = fmt.Sprintf("localhost:%d", port)
+	reply.Host = fmt.Sprintf("localhost:%d", e.Port)
 
 	return nil
 }
@@ -82,7 +86,7 @@ func (d *Daemon) Resolve(args *ResolveArgs, reply *ResolveReply) error {
 func Do() {
 	println("magichost daemon starting")
 
-	table := make(map[string]int)
+	table := make(map[string]proxy.MagicEntry)
 
 	go proxy.Start(table)
 
@@ -90,6 +94,8 @@ func Do() {
 	if err := rpc.Register(&d); err != nil {
 		panic(err)
 	}
+
+	d.Claim(&ClaimArgs{Host: "foo.local"}, &ClaimReply{})
 
 	f := SocketFile()
 	os.Remove(f)

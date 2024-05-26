@@ -1,0 +1,3 @@
+[submodule "mdns"]
+	path = _vendor/mdns
+	url = https://github.com/oosawy/mdns.git

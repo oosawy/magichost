@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("usage: magichost [daemon]")
+		fmt.Println("usage: magichost daemon")
 		fmt.Println("   or: magichost [client] (list|claim)")
 		os.Exit(1)
 		return
@@ -24,13 +24,13 @@ func main() {
 	case "daemon":
 		daemon.Do()
 	case "proxy":
-		table := map[string]int{}
+		table := map[string]proxy.MagicEntry{}
 		proxy.Start(table)
 		p, err := strconv.Atoi(os.Args[2])
 		if err != nil {
 			panic(err)
 		}
-		table[os.Args[3]] = p
+		table[os.Args[3]] = proxy.MagicEntry{Port: p}
 
 		quitChannel := make(chan os.Signal, 1)
 		signal.Notify(quitChannel, syscall.SIGINT, syscall.SIGTERM)
